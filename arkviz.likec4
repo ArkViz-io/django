@@ -1,154 +1,173 @@
 model {
-  projFrameworkMaintainer = actor 'Framework Maintainer' {
-    description 'Core contributor developing and reviewing framework code'
+  projMaintainer = actor 'Django Maintainer' {
+    description 'Core contributor maintaining framework code, releases, and CI pipelines'
   }
 
-  projApplicationDeveloper = actor 'Application Developer' {
-    description 'Uses the framework to build web applications'
+  projContributor = actor 'Open Source Contributor' {
+    description 'External developer submitting pull requests and running tests'
   }
 
-  projCiEngineer = actor 'CI Engineer' {
-    description 'Runs automated validation, linting, and test pipelines'
+  projFrameworkUser = actor 'Django Application Developer' {
+    description 'Developer who installs Django package and uses django-admin tooling'
   }
 
-  projDjangoFramework = system 'Django Framework' {
-    description 'Python web framework providing request handling, ORM, templates, admin, auth, middleware, and management tooling'
+  projSystem = system 'Django Web Framework' {
+    description 'Python web framework codebase providing request handling, ORM, templates, auth, admin, middleware, and management commands'
 
-    projAdminCli = frontend 'django-admin CLI' {
+    projAdminCli = service 'Management CLI' {
       technology 'Python 3.12+, django.core.management'
-      description 'Command-line interface for project/app scaffolding, migrations, and administrative tasks'
+      description 'Command-line interface exposed via django-admin and manage.py for project/app scaffolding and operational commands'
     }
 
-    projWsgiAsgiRuntime = service 'WSGI/ASGI Runtime Handler' {
-      technology 'Python, django.core.handlers.wsgi, django.core.handlers.asgi, asgiref'
-      description 'Entry-point runtime that receives HTTP requests and dispatches them through middleware and URL resolution'
+    projHttpRuntime = service 'HTTP Runtime' {
+      technology 'Python, WSGI/ASGI handlers'
+      description 'Core request/response processing runtime using django.core.handlers.wsgi and django.core.handlers.asgi'
 
-      projRequestParser = component 'Request Parser' {
-        description 'Builds HttpRequest objects, parses query params, cookies, and input streams'
+      projRequestParser = component 'Request Parsing Component' {
+        description 'Builds request objects from WSGI/ASGI environment, parses query strings, cookies, body streams'
       }
 
-      projMiddlewarePipeline = component 'Middleware Pipeline' {
-        description 'Loads and executes configured middleware chain for request/response processing'
+      projMiddlewarePipeline = component 'Middleware Pipeline Component' {
+        description 'Loads and executes middleware chain for security, session, CSRF, caching, localization, and common HTTP handling'
       }
 
-      projUrlResolver = component 'URL Resolver' {
-        description 'Matches request paths to view callables using django.urls'
+      projUrlResolver = component 'URL Routing Component' {
+        description 'Resolves URL patterns and dispatches to views'
       }
 
-      projViewDispatcher = component 'View Dispatcher' {
-        description 'Invokes resolved views and produces HttpResponse objects'
+      projViewExecution = component 'View Execution Component' {
+        description 'Executes class-based and function views and returns HttpResponse objects'
       }
 
-      projRequestParser -> projMiddlewarePipeline 'passes parsed request to middleware chain'
-      projMiddlewarePipeline -> projUrlResolver 'routes request after middleware pre-processing'
-      projUrlResolver -> projViewDispatcher 'dispatches to matched view'
+      projResponseEmitter = component 'Response Emission Component' {
+        description 'Serializes status, headers, cookies, and response body back to server gateway'
+      }
+
+      projRequestParser -> projMiddlewarePipeline 'passes normalized request context'
+      projMiddlewarePipeline -> projUrlResolver 'forwards validated request'
+      projUrlResolver -> projViewExecution 'dispatches matched route'
+      projViewExecution -> projResponseEmitter 'returns response payload'
     }
 
-    projOrmMigrationEngine = service 'ORM and Migrations Engine' {
-      technology 'Python, django.db.models, django.db.migrations, sqlparse'
-      description 'Defines models, builds queries, and manages schema migration lifecycle'
+    projOrmLayer = service 'ORM and Migrations Engine' {
+      technology 'Python, django.db, SQL backends'
+      description 'Model layer, query construction, schema migrations, and transaction handling across supported relational databases'
     }
 
-    projTemplateEngine = service 'Template and Rendering Engine' {
+    projTemplateEngine = service 'Template Rendering Engine' {
       technology 'Django Templates, Jinja2 backend support'
-      description 'Renders server-side templates and form outputs for HTML responses'
+      description 'Template compilation and rendering with loaders, tags, filters, and context processors'
     }
 
-    projAuthAdminModules = service 'Authentication and Admin Modules' {
-      technology 'django.contrib.auth, django.contrib.admin, django.contrib.sessions, django.contrib.messages'
-      description 'Provides authentication, authorization, admin site, session, and messaging features'
+    projAuthSubsystem = service 'Authentication and Authorization Subsystem' {
+      technology 'django.contrib.auth, password hashers'
+      description 'User models, authentication backends, permissions, sessions integration, and auth views'
     }
 
-    projTaskBackend = service 'Task Execution Backend' {
-      technology 'django.tasks backends (immediate, dummy, base)'
-      description 'Pluggable task execution abstraction for asynchronous or immediate task processing'
+    projAdminSubsystem = frontend 'Admin Interface' {
+      technology 'django.contrib.admin, JavaScript, CSS'
+      description 'Built-in administrative web UI for model management and operational tasks'
     }
 
-    projSqlDatabase = database 'Application Database' {
-      technology 'PostgreSQL, SQLite, MySQL, Oracle via Django DB backends'
-      description 'Primary relational data store targeted by ORM and migrations'
+    projSessionStore = database 'Session Store' {
+      technology 'Database-backed sessions via django.contrib.sessions'
+      description 'Persists user session state and session metadata'
     }
 
-    projCacheStore = cache 'Cache Backend' {
-      technology 'Django cache framework, Memcached/Redis/local memory backends'
-      description 'Caching layer used by middleware and application components'
+    projCacheLayer = cache 'Framework Cache Layer' {
+      technology 'django.core.cache, memcached/redis/file backends'
+      description 'Pluggable caching for pages, templates, and computed data'
     }
 
-    projStaticAssets = integration 'Static Files and Asset Pipeline' {
-      technology 'django.contrib.staticfiles, Grunt, npm, QUnit, ESLint'
-      description 'Collects static assets and runs JavaScript validation/test tooling'
+    projStaticAssetService = service 'Static Files Service' {
+      technology 'django.contrib.staticfiles'
+      description 'Finds, serves, and manages static assets in development and test environments'
     }
 
-    projAdminCli -> projOrmMigrationEngine 'executes migration and schema commands'
-    projWsgiAsgiRuntime -> projTemplateEngine 'renders responses with templates'
-    projWsgiAsgiRuntime -> projAuthAdminModules 'applies auth, session, and admin workflows'
-    projWsgiAsgiRuntime -> projOrmMigrationEngine 'queries and persists model data'
-    projWsgiAsgiRuntime -> projCacheStore 'reads and writes cached content'
-    projOrmMigrationEngine -> projSqlDatabase 'reads and writes relational data'
-    projAuthAdminModules -> projSqlDatabase 'stores users, sessions, and permissions'
-    projStaticAssets -> projWsgiAsgiRuntime 'serves static assets in development and test contexts'
+    projHttpRuntime -> projTemplateEngine 'renders response templates'
+    projHttpRuntime -> projOrmLayer 'reads and writes model data'
+    projHttpRuntime -> projAuthSubsystem 'authenticates users and checks permissions'
+    projHttpRuntime -> projSessionStore 'reads and writes session data'
+    projHttpRuntime -> projCacheLayer 'reads and writes cached content'
+    projHttpRuntime -> projStaticAssetService 'serves static assets when configured'
+    projAdminSubsystem -> projHttpRuntime 'submits admin HTTP requests'
+    projAdminSubsystem -> projAuthSubsystem 'enforces admin authentication'
+    projAdminCli -> projOrmLayer 'runs migrations and schema operations'
+  }
+
+  projPypi = external 'PyPI' {
+    technology 'Python Package Index'
+    description 'Package distribution channel used to publish and install Django'
+  }
+
+  projPostgreSql = external 'PostgreSQL' {
+    technology 'PostgreSQL 15-18, PostGIS variants in CI'
+    description 'Primary relational database exercised by integration and migration tests'
+  }
+
+  projSqlite = external 'SQLite' {
+    technology 'SQLite'
+    description 'Default lightweight relational database used in many test paths'
   }
 
   projGithubActions = external 'GitHub Actions' {
-    technology 'GitHub-hosted CI'
-    description 'Runs repository workflows for tests, linting, docs, benchmarks, and scheduled checks'
+    technology 'GitHub-hosted CI runners'
+    description 'Continuous integration platform running tests, linting, docs, coverage, selenium, and scheduled workflows'
   }
 
-  projPostgreSqlService = external 'PostgreSQL Service' {
-    technology 'PostgreSQL 15/16/17/18, PostGIS variants in CI'
-    description 'External database service used in CI matrices and integration tests'
-  }
-
-  projNodeToolchain = external 'Node.js Toolchain' {
+  projNodeToolchain = external 'Node.js Test Toolchain' {
     technology 'Node.js 20, npm, Grunt, QUnit, Puppeteer, ESLint'
-    description 'Executes JavaScript linting and frontend/admin static test suites'
+    description 'JavaScript tooling for admin/static JavaScript tests and linting'
   }
 
-  projApplicationDeveloper -> projDjangoFramework.projAdminCli 'uses CLI to create and manage projects' {
-    technology 'Shell'
-  }
-  projApplicationDeveloper -> projDjangoFramework.projWsgiAsgiRuntime 'integrates framework runtime into web apps' {
-    technology 'WSGI/ASGI'
-  }
-  projFrameworkMaintainer -> projDjangoFramework.projAuthAdminModules 'maintains contrib modules and security behavior' {
-    technology 'Python'
-  }
-  projCiEngineer -> projGithubActions 'configures and monitors CI workflows' {
-    technology 'YAML'
-  }
-  projGithubActions -> projDjangoFramework.projAdminCli 'runs management commands in test jobs' {
+  projFrameworkUser -> projSystem.projAdminCli 'invokes project and app commands' {
     technology 'CLI'
   }
-  projGithubActions -> projDjangoFramework.projWsgiAsgiRuntime 'executes framework test suites' {
-    technology 'Python test runner'
+  projFrameworkUser -> projSystem.projHttpRuntime 'uses framework runtime in web applications' {
+    technology 'WSGI/ASGI'
   }
-  projGithubActions -> projPostgreSqlService 'provisions and uses database service containers' {
-    technology 'TCP 5432'
+  projContributor -> projGithubActions 'triggers CI by opening and updating pull requests' {
+    technology 'HTTPS'
   }
-  projGithubActions -> projNodeToolchain 'runs JavaScript lint and test pipelines' {
+  projMaintainer -> projGithubActions 'maintains workflow automation and release quality gates' {
+    technology 'HTTPS'
+  }
+  projGithubActions -> projSystem.projAdminCli 'executes management commands and test runners' {
+    technology 'Python'
+  }
+  projGithubActions -> projSystem.projHttpRuntime 'runs runtime and integration tests' {
+    technology 'Python'
+  }
+  projGithubActions -> projPostgreSql 'executes database integration suites' {
+    technology 'TCP/SQL'
+  }
+  projGithubActions -> projSqlite 'executes sqlite test suites' {
+    technology 'Embedded SQL'
+  }
+  projGithubActions -> projNodeToolchain 'runs JavaScript lint and test scripts' {
     technology 'npm'
   }
-  projDjangoFramework.projOrmMigrationEngine -> projPostgreSqlService 'validates DB backend compatibility in CI' {
-    technology 'SQL'
+  projFrameworkUser -> projPypi 'installs framework package' {
+    technology 'pip/HTTPS'
   }
 }
 
 views {
   view projectContext {
-    title 'System Context - Django Framework'
-    description 'Maintainers, developers, CI systems, and external services interacting with Django'
+    title 'System Context - Django Web Framework'
+    description 'Maintainers, contributors, framework users, and external platforms interacting with Django'
     include *
   }
 
-  view projectContainers of projDjangoFramework {
-    title 'Containers - Django Framework'
-    description 'Major framework runtime, data, and tooling building blocks'
+  view projectContainers of projSystem {
+    title 'Containers - Django Web Framework'
+    description 'Major runtime, tooling, persistence, caching, and admin building blocks inside the framework'
     include *
   }
 
-  view projectComponents of projDjangoFramework.projWsgiAsgiRuntime {
-    title 'Components - WSGI/ASGI Runtime Handler'
-    description 'Internal request processing components in Django runtime handlers'
+  view projectComponents of projSystem.projHttpRuntime {
+    title 'Components - HTTP Runtime'
+    description 'Internal request-to-response pipeline components inside the Django HTTP runtime service'
     include *
   }
 }
